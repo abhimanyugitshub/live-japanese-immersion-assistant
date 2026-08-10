@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><title>WASM Test</title></head>
+<body>
+  <h1>Open the browser console (F12) to see results</h1>
+  <script src="hello.js"></script>
+  <script>
+    createModule().then((Module) => {
+      console.log("addNumbers(3, 4) =", Module.addNumbers(3, 4));
+      console.log("greet('Abhimanyu') =", Module.greet("Abhimanyu"));
+      document.body.innerHTML += "<p>3 + 4 = " + Module.addNumbers(3, 4) + "</p>";
+      document.body.innerHTML += "<p>" + Module.greet("Abhimanyu") + "</p>";
+    });
+  </script>
+</body>
+</html>
