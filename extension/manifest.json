@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Live Japanese Immersion Assistant",
+  "version": "0.1.0",
+  "description": "Reads live Japanese subtitles, looks up words, and tracks vocabulary while you watch.",
+  "permissions": ["storage", "scripting"],
+  "host_permissions": ["*://*.netflix.com/*", "*://*.hotstar.com/*", "*://*.youtube.com/*"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Live Japanese Immersion Assistant",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "options_page": "options/options.html",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "content_scripts": [
+    {
+      "matches": ["*://*.netflix.com/*", "*://*.hotstar.com/*", "*://*.youtube.com/*"],
+      "js": ["content-scripts/caption-reader.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

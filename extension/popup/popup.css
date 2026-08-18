@@ -1,0 +1,46 @@
+body {
+  width: 260px;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #ffffff;
+  color: #222222;
+}
+
+.popup-container {
+  padding: 16px;
+}
+
+h1 {
+  font-size: 15px;
+  margin: 0 0 8px 0;
+}
+
+#status {
+  font-size: 12px;
+  color: #3c4091;
+  margin: 0 0 12px 0;
+}
+
+.placeholder-card {
+  font-size: 11px;
+  color: #777777;
+  border: 1px dashed #cccccc;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+button {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  background: #3c4091;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #2e3172;
+}
