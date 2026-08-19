@@ -5,26 +5,113 @@
 // is idle. Anything you write here can read and touch that page's DOM,
 // same as a browser extension's DevTools console could.
 //
-// This is currently a STUB. Module C (Caption-Track Reader) builds the
-// real DOM-observation logic here: detecting the platform's existing
-// subtitle element and reading its text live as it changes.
-//
-// What's proven working right now:
-//   1. The script is being injected on the right sites at the right time.
-//   2. It can talk back to background.js through chrome.runtime messages.
+// Module C (Caption-Track Reader): detects the platform's existing
+// subtitle element and reads its text live as it changes, via DOM
+// observation only — no video pixels are touched.
 
 console.log("[LJIA] caption-reader.js injected on:", window.location.hostname);
 
-// Quick round-trip test so Module C can confirm messaging works before
-// writing any real caption-detection logic.
-chrome.runtime.sendMessage({ type: "PING" }, (response) => {
-  if (chrome.runtime.lastError) {
-    console.warn("[LJIA] Could not reach background script:", chrome.runtime.lastError.message);
-    return;
+// ---------------------------------------------------------------------
+// 1. Figure out which platform we're on, and where its captions live.
+// ---------------------------------------------------------------------
+//
+// Each platform renders subtitles differently, so each needs its own
+// CSS selector telling us where to look. `combine` decides how to turn
+// however many matching elements we find into one string of text.
+function detectPlatform() {
+  const host = window.location.hostname;
+
+  if (host.includes("youtube.com")) {
+    return {
+      name: "youtube",
+      // YouTube splits one caption line across several small <span> segments.
+      selector: ".ytp-caption-segment",
+      combine: (elements) =>
+        Array.from(elements).map((el) => el.textContent.trim()).join(" "),
+    };
   }
-  console.log("[LJIA] Background responded:", response);
+
+  if (host.includes("netflix.com")) {
+    return {
+      name: "netflix",
+      selector: ".player-timedtext-text-container",
+      combine: (elements) =>
+        Array.from(elements).map((el) => el.textContent.trim()).join(" "),
+    };
+  }
+
+  // Hotstar (and anything else not explicitly handled above): fall back to
+  // a generic heuristic, since exact class names vary and change often.
+  // We look for elements whose class name mentions "caption" or "subtitle",
+  // or that are marked as a live region (common for accessibility captions).
+  return {
+    name: "generic",
+    selector:
+      '[class*="caption" i], [class*="subtitle" i], [aria-live="polite"], [aria-live="assertive"]',
+    combine: (elements) =>
+      Array.from(elements)
+        .map((el) => el.textContent.trim())
+        .filter((text) => text.length > 0)
+        .join(" "),
+  };
+}
+
+const platform = detectPlatform();
+console.log("[LJIA] Detected platform:", platform.name);
+
+// ---------------------------------------------------------------------
+// 2. Read the current caption text from the page right now.
+// ---------------------------------------------------------------------
+function readCurrentCaptionText() {
+  const elements = document.querySelectorAll(platform.selector);
+  if (elements.length === 0) return "";
+  return platform.combine(elements);
+}
+
+// ---------------------------------------------------------------------
+// 3. Watch the page for changes, and only log when the caption text
+//    actually changes (the DOM mutates constantly — video players update
+//    timestamps, progress bars, etc. — we don't want to log every twitch).
+// ---------------------------------------------------------------------
+let lastCaptionText = "";
+
+function handlePotentialCaptionChange() {
+  const currentText = readCurrentCaptionText();
+
+  if (currentText !== lastCaptionText) {
+    lastCaptionText = currentText;
+
+    if (currentText.length > 0) {
+      console.log(
+        "[LJIA] Caption changed:",
+        currentText,
+        "| platform:",
+        platform.name,
+        "| time:",
+        new Date().toISOString()
+      );
+
+      // Forward-looking: later weeks (subtitle overlay, dictionary lookup)
+      // will want this data too. Sending it now costs nothing and means
+      // background.js is already receiving real caption events.
+      chrome.runtime.sendMessage({
+        type: "CAPTION_UPDATE",
+        text: currentText,
+        platform: platform.name,
+        timestamp: Date.now(),
+      });
+    }
+  }
+}
+
+const observer = new MutationObserver(() => {
+  handlePotentialCaptionChange();
 });
 
-// TODO (Module C): replace this with real caption detection, e.g.
-//   const observer = new MutationObserver(() => { ...read subtitle text... });
-//   observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(document.body, {
+  childList: true,
+  subtree: true,
+  characterData: true,
+});
+
+console.log("[LJIA] Caption observer started, watching for:", platform.selector);
